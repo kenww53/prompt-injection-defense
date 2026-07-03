@@ -343,29 +343,41 @@ async function promptInjectionMiddleware(req, res, next) {
     if (!userInput) {
         return next();
     }
-    // Rate limit check
-    if (!PromptInjectionDefense.checkRateLimit(userId)) {
-        return res.status(429).json({
-            error: 'Too many requests',
-            message: 'Please slow down and try again later'
-        });
+    // MONITOR_ONLY: detect + log but never block (safe first rollout — observe real
+    // traffic before enforcing). Set PROMPT_INJECTION_MONITOR_ONLY=true to enable.
+    const monitorOnly = process.env.PROMPT_INJECTION_MONITOR_ONLY === 'true';
+    // Rate limiting is opt-in (off by default) so clinical workflows are never
+    // throttled unexpectedly. Set PROMPT_INJECTION_RATE_LIMIT=true to enable.
+    const rateLimitOn = process.env.PROMPT_INJECTION_RATE_LIMIT === 'true';
+    if (rateLimitOn && !PromptInjectionDefense.checkRateLimit(userId)) {
+        if (monitorOnly) {
+            PromptInjectionDefense.logSecurityEvent('rate_limit_monitor', { userId });
+        }
+        else {
+            return res.status(429).json({
+                error: 'Too many requests',
+                message: 'Please slow down and try again later'
+            });
+        }
     }
     // Security check with consciousness guidance
     const securityCheck = await PromptInjectionDefense.checkInput(userInput);
     if (!securityCheck.safe) {
-        PromptInjectionDefense.logSecurityEvent('injection_blocked', {
+        PromptInjectionDefense.logSecurityEvent(monitorOnly ? 'injection_detected_monitor' : 'injection_blocked', {
             userId,
             risk: securityCheck.risk,
             reason: securityCheck.reason,
             input: userInput.substring(0, 100),
             consciousnessInformed: securityCheck.consciousnessInformed
         });
-        return res.status(400).json({
-            error: 'Invalid request',
-            message: 'Your input contains patterns that cannot be processed'
-        });
+        if (!monitorOnly) {
+            return res.status(400).json({
+                error: 'Invalid request',
+                message: 'Your input contains patterns that cannot be processed'
+            });
+        }
     }
-    // Passed security - continue
+    // Passed security (or monitor mode) - continue
     next();
 }
 /**
@@ -378,25 +390,34 @@ function promptInjectionMiddlewareSync(req, res, next) {
     if (!userInput) {
         return next();
     }
-    if (!PromptInjectionDefense.checkRateLimit(userId)) {
-        return res.status(429).json({
-            error: 'Too many requests',
-            message: 'Please slow down and try again later'
-        });
+    const monitorOnly = process.env.PROMPT_INJECTION_MONITOR_ONLY === 'true';
+    const rateLimitOn = process.env.PROMPT_INJECTION_RATE_LIMIT === 'true';
+    if (rateLimitOn && !PromptInjectionDefense.checkRateLimit(userId)) {
+        if (monitorOnly) {
+            PromptInjectionDefense.logSecurityEvent('rate_limit_monitor', { userId });
+        }
+        else {
+            return res.status(429).json({
+                error: 'Too many requests',
+                message: 'Please slow down and try again later'
+            });
+        }
     }
     const securityCheck = PromptInjectionDefense.checkInputSync(userInput);
     if (!securityCheck.safe) {
-        PromptInjectionDefense.logSecurityEvent('injection_blocked', {
+        PromptInjectionDefense.logSecurityEvent(monitorOnly ? 'injection_detected_monitor' : 'injection_blocked', {
             userId,
             risk: securityCheck.risk,
             reason: securityCheck.reason,
             input: userInput.substring(0, 100),
             consciousnessInformed: false
         });
-        return res.status(400).json({
-            error: 'Invalid request',
-            message: 'Your input contains patterns that cannot be processed'
-        });
+        if (!monitorOnly) {
+            return res.status(400).json({
+                error: 'Invalid request',
+                message: 'Your input contains patterns that cannot be processed'
+            });
+        }
     }
     next();
 }

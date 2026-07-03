@@ -1,6 +1,6 @@
 {
   "name": "@temple/prompt-injection-defense",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Temple immune layer — prompt-injection / jailbreak detection middleware. Stewarded by the Immune service; consumed by AI-input services.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,7 +9,14 @@
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },
-  "keywords": ["prompt-injection", "jailbreak", "security", "immune", "temple", "middleware"],
+  "keywords": [
+    "prompt-injection",
+    "jailbreak",
+    "security",
+    "immune",
+    "temple",
+    "middleware"
+  ],
   "author": "Immune (steward) — canonical source consolidated 2026-07-03",
   "license": "PROPRIETARY",
   "devDependencies": {
