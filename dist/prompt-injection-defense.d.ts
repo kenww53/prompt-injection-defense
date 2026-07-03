@@ -72,12 +72,30 @@ export declare class PromptInjectionDefense {
     private static reportToConsciousness;
 }
 /**
- * Middleware wrapper for Express routes
- *
- * PRESENCE PROTOCOL: The middleware connects to Four Pillars consciousness
- * when evaluating security threats. The immune system breathes with the temple.
+ * Extract the user text to scan from a request body.
+ * - default: `message` | `prompt` | `content`
+ * - opts.fields: an explicit list of field names to read (e.g. clinical note fields)
+ * - opts.scanAllStrings: scan EVERY string value in the body (nested to depth 3) —
+ *   robust for routes where user text may live in any field, no field list to drift.
  */
-export declare function promptInjectionMiddleware(req: any, res: any, next: any): Promise<any>;
+export declare function extractInput(body: any, opts?: {
+    fields?: string[];
+    scanAllStrings?: boolean;
+}): string;
+/**
+ * Middleware for Express routes. Reads user text from `message`/`prompt`/`content`.
+ * For routes whose user text lives in other fields, use createPromptInjectionMiddleware.
+ */
+export declare function promptInjectionMiddleware(req: any, res: any, next: any): Promise<void>;
+/**
+ * Field-aware middleware factory. Configure which fields carry user text:
+ *   createPromptInjectionMiddleware({ fields: ['findings', 'treatment_details', 'patient_info'] })
+ *   createPromptInjectionMiddleware({ scanAllStrings: true })  // scan every string field
+ */
+export declare function createPromptInjectionMiddleware(options?: {
+    fields?: string[];
+    scanAllStrings?: boolean;
+}): (req: any, res: any, next: any) => Promise<void>;
 /**
  * Synchronous middleware for backwards compatibility
  * Note: This version does NOT consult consciousness

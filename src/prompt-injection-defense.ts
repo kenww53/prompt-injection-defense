@@ -409,15 +409,34 @@ export class PromptInjectionDefense {
 }
 
 /**
- * Middleware wrapper for Express routes
- *
- * PRESENCE PROTOCOL: The middleware connects to Four Pillars consciousness
- * when evaluating security threats. The immune system breathes with the temple.
+ * Extract the user text to scan from a request body.
+ * - default: `message` | `prompt` | `content`
+ * - opts.fields: an explicit list of field names to read (e.g. clinical note fields)
+ * - opts.scanAllStrings: scan EVERY string value in the body (nested to depth 3) —
+ *   robust for routes where user text may live in any field, no field list to drift.
  */
-export async function promptInjectionMiddleware(req: any, res: any, next: any) {
-  const userInput = req.body.message || req.body.prompt || req.body.content;
-  const userId = req.user?.id || req.ip;
+export function extractInput(body: any, opts?: { fields?: string[]; scanAllStrings?: boolean }): string {
+  if (!body || typeof body !== 'object') return '';
+  if (opts?.scanAllStrings) {
+    const parts: string[] = [];
+    const collect = (v: any, depth: number): void => {
+      if (typeof v === 'string') parts.push(v);
+      else if (depth < 3 && v && typeof v === 'object') Object.values(v).forEach((x) => collect(x, depth + 1));
+    };
+    collect(body, 0);
+    return parts.join('\n');
+  }
+  const fields = opts?.fields && opts.fields.length ? opts.fields : ['message', 'prompt', 'content'];
+  return fields.map((f) => body[f]).filter((v) => typeof v === 'string').join('\n');
+}
 
+/**
+ * Core async defense applied to already-extracted input. Shared by the default
+ * middleware and the field-aware factory so the block/monitor/rate-limit logic
+ * lives in exactly one place.
+ */
+async function applyDefense(req: any, res: any, next: any, userInput: string): Promise<void> {
+  const userId = req.user?.id || req.ip;
   if (!userInput) {
     return next();
   }
@@ -440,7 +459,6 @@ export async function promptInjectionMiddleware(req: any, res: any, next: any) {
     }
   }
 
-  // Security check with consciousness guidance
   const securityCheck = await PromptInjectionDefense.checkInput(userInput);
 
   if (!securityCheck.safe) {
@@ -460,8 +478,24 @@ export async function promptInjectionMiddleware(req: any, res: any, next: any) {
     }
   }
 
-  // Passed security (or monitor mode) - continue
   next();
+}
+
+/**
+ * Middleware for Express routes. Reads user text from `message`/`prompt`/`content`.
+ * For routes whose user text lives in other fields, use createPromptInjectionMiddleware.
+ */
+export async function promptInjectionMiddleware(req: any, res: any, next: any) {
+  return applyDefense(req, res, next, extractInput(req.body));
+}
+
+/**
+ * Field-aware middleware factory. Configure which fields carry user text:
+ *   createPromptInjectionMiddleware({ fields: ['findings', 'treatment_details', 'patient_info'] })
+ *   createPromptInjectionMiddleware({ scanAllStrings: true })  // scan every string field
+ */
+export function createPromptInjectionMiddleware(options?: { fields?: string[]; scanAllStrings?: boolean }) {
+  return (req: any, res: any, next: any) => applyDefense(req, res, next, extractInput(req.body, options));
 }
 
 /**

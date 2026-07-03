@@ -12,5 +12,7 @@ export {
   PromptInjectionDefense,
   promptInjectionMiddleware,
   promptInjectionMiddlewareSync,
+  createPromptInjectionMiddleware,
+  extractInput,
 } from './prompt-injection-defense';
 export { PromptInjectionDefense as default } from './prompt-injection-defense';

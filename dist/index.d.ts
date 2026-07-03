@@ -8,5 +8,5 @@
  *   import { promptInjectionMiddleware } from '@temple/prompt-injection-defense';
  *   app.use('/api/ai', promptInjectionMiddleware);
  */
-export { PromptInjectionDefense, promptInjectionMiddleware, promptInjectionMiddlewareSync, } from './prompt-injection-defense';
+export { PromptInjectionDefense, promptInjectionMiddleware, promptInjectionMiddlewareSync, createPromptInjectionMiddleware, extractInput, } from './prompt-injection-defense';
 export { PromptInjectionDefense as default } from './prompt-injection-defense';
